@@ -1,32 +1,33 @@
-# Flask server setup for receiving notifs from Android
-
 from flask import Flask, request, jsonify
+from datetime import datetime
 
 app = Flask(__name__)
 
 @app.route('/discord-webhook', methods=['POST'])
 def handle_webhook():
-    # Ensure the incoming request is JSON
-    if request.is_json:
+    # 1. Catch Form Data (from MacroDroid)
+    if request.form:
+        title = request.form.get('title', 'No Title')
+        message = request.form.get('text', 'No Message')
+        
+    # 2. Catch JSON Data (from your test.py script)
+    elif request.is_json:
         data = request.get_json()
-        
-        # Extract the notification title (usually sender/server name)
         title = data.get('title', 'No Title')
-        
-        # Extract the notification text (the actual message)
         message = data.get('text', 'No Message')
         
-        print("\n--- New Discord Notification ---")
-        print(f"From: {title}")
-        print(f"Message: {message}")
-        print("--------------------------------\n")
-        
-        # You can add your custom processing logic here!
-        
-        return jsonify({"status": "success"}), 200
     else:
-        return jsonify({"status": "error", "message": "Payload must be JSON"}), 400
+        return jsonify({"status": "error", "message": "Unsupported payload type"}), 400
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"[{timestamp}] {title}: {message}\n"
+    
+    print(f"Saved to file: {log_entry.strip()}")
+    
+    with open("discord_messages.txt", "a", encoding="utf-8") as file:
+        file.write(log_entry)
+    
+    return jsonify({"status": "success"}), 200
 
 if __name__ == '__main__':
-    # Run the server on port 5001
     app.run(host='0.0.0.0', port=5001)
