@@ -1,55 +1,104 @@
-# test_simulation.py
+# Tests for trading logic and edge cases
+
 import requests
 import time
+from datetime import datetime
+from alpaca.trading.client import TradingClient
+from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest, GetOptionContractsRequest
+from alpaca.trading.enums import OrderSide, TimeInForce
+from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, LOG_FILE
+# from memory import load_tracker, save_tracker
+from trader import execute_trade, close_options_position
 
-# The local address of your Flask server
-URL = 'http://127.0.0.1:5001/discord-webhook'
+# Initialize Trading Client
+trading_client = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
 
-# A chronological sequence of real messages from your example data
+# def test_simple_trade_execution():
+
+# Simplified testing after trade data parsing 
 simulation_sequence = [
-    {
-        "title": "Waxui Alerts",
-        "text": "OnlyOptionsTrades #🍭│waxui: Waxui Alerts 🍭: ⁨@Premium⁩  *Riskier*\nHOOD here\n02/27 78C\nAvg, 1.50"
-    },
-    {
-        "title": "Waxui Alerts",
-        "text": "OnlyOptionsTrades #🍭│waxui: Waxui Alerts 🍭: ⁨@Premium⁩  *Lotto*\nSPY here\n02/27 682P\nAvg.\n2.00"
-    },
-    {
-        "title": "Waxui Alerts",
-        "text": "OnlyOptionsTrades #🍭│waxui: Waxui Alerts 🍭: ⁨@Premium⁩  Closed HOOD here"
-    },
-    {
-        "title": "Waxui Alerts",
-        "text": "OnlyOptionsTrades #🍭│waxui: Waxui Alerts 🍭: ⁨@Premium⁩  Trim SPY here\n2.00 - 2.45 ✅ 23%\nHolding most."
-    }
+  # {'type': 'ENTRY', 'ticker': 'SPY', 'occ_symbol': 'SPY260312P00661000', 'price': 2.0, 'quantity': 4},
+  {'type': 'ENTRY', 'ticker': 'HOOD', 'occ_symbol': 'HOOD260320C00078000', 'price': 2.0, 'quantity': 4},
+  {'type': 'EXIT_ALL', 'ticker': 'HOOD', 'occ_symbol': 'HOOD260320C00078000', 'price': 2.0, 'quantity': 4},
+  # {'type': 'EXIT_PARTIAL', 'ticker': 'SPY', 'occ_symbol': 'SPY260312P00661000', 'price': 2.0, 'quantity': 4},
 ]
 
 print("🚀 Starting Trading Simulation...\n")
 
-for i, payload in enumerate(simulation_sequence, 1):
+for i, trade_data in enumerate(simulation_sequence, 1):
     print(f"--- Sending Message {i} of {len(simulation_sequence)} ---")
-    print(f"Preview: {payload['text'].splitlines()[1] if len(payload['text'].splitlines()) > 1 else payload['text']}")
+    print(f"Preview: {trade_data}")
     
     try:
-        # We send this as standard JSON because we built the Flask server 
-        # to accept both JSON (for testing) and Form Data (for MacroDroid)
-        response = requests.post(URL, json=payload)
-        
-        if response.status_code == 200:
-            print("Delivery: SUCCESS")
-        else:
-            print(f"Delivery: FAILED ({response.status_code})")
-            
-    except requests.exceptions.ConnectionError:
-        print("Error: Could not connect. Is server.py running?")
-        break
-        
-    print("-" * 40)
-    
-    # Wait 5 seconds before sending the next signal to allow Alpaca to process
-    if i < len(simulation_sequence):
-        print("Waiting 5 seconds...\n")
-        time.sleep(5)
+      # 2. Execute trading logic if a valid signal was found
+      if trade_data:
+          if trade_data["type"] == "ENTRY":
+              execute_trade(trade_data)
+          elif trade_data["type"] in ["EXIT_ALL", "EXIT_PARTIAL"]:
+              close_options_position(trade_data["ticker"], trade_data["type"])
+      else:
+          print("No actionable trade data found in message.")
+          
+      # 3. Log the raw message to your text file
+      timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+      log_entry = f"[{timestamp}] Testing: {trade_data}\n"
+      with open(LOG_FILE, "a", encoding="utf-8") as file:
+        file.write(log_entry)
 
-print("\n🏁 Simulation Complete!")
+        print("-" * 40)
+    
+      # Wait 5 seconds before sending the next signal to allow Alpaca to process
+      if i < len(simulation_sequence):
+          print("Waiting 5 seconds...\n")
+          time.sleep(5)
+
+      print("\n🏁 Simulation Complete!")
+
+    except:
+        print("Error: Could not execute trades. Check Alpaca connection")
+        break
+
+
+# def test_multiple_orders_same_ticker():
+#   # Test for several orders linked to the same ticker
+
+#   simulation_sequence = [
+#     {'type': 'ENTRY', 'ticker': 'SPY', 'occ_symbol': 'SPY260310P00661000', 'price': 2.0, 'quantity': 4},
+#     {'type': 'ENTRY', 'ticker': 'SPY', 'occ_symbol': 'SPY260310P00661000', 'price': 3.0, 'quantity': 2},
+#     {'type': 'EXIT_ALL', 'ticker': 'SPY', 'occ_symbol': 'SPY260310P00661000', 'price': 4.0, 'quantity': 6},
+#   ]
+
+#   print("🚀 Starting Trading Simulation...\n")
+
+#   for i, trade_data in enumerate(simulation_sequence, 1):
+#       print(f"--- Sending Message {i} of {len(simulation_sequence)} ---")
+#       print(f"Preview: {trade_data}")
+      
+#       try:
+#         # 2. Execute trading logic if a valid signal was found
+#         if trade_data:
+#             if trade_data["type"] == "ENTRY":
+#                 execute_trade(trade_data)
+#             elif trade_data["type"] in ["EXIT_ALL", "EXIT_PARTIAL"]:
+#                 close_options_position(trade_data["ticker"], trade_data["type"])
+#         else:
+#             print("No actionable trade data found in message.")
+            
+#         # 3. Log the raw message to your text file
+#         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#         log_entry = f"[{timestamp}] Testing: {trade_data}\n"
+#         with open(LOG_FILE, "a", encoding="utf-8") as file:
+#           file.write(log_entry)
+
+#           print("-" * 40)
+      
+#         # Wait 5 seconds before sending the next signal to allow Alpaca to process
+#         if i < len(simulation_sequence):
+#             print("Waiting 5 seconds...\n")
+#             time.sleep(5)
+
+#         print("\n🏁 Simulation Complete!")
+
+#       except:
+#           print("Error: Could not execute trades. Check Alpaca connection")
+#           break

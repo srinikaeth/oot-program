@@ -16,11 +16,12 @@ def handle_webhook():
     if request.form:
         title = request.form.get('title', 'No Title')
         message = request.form.get('text', 'No Message')
+        print(f'Message received is {message}')
     elif request.is_json:
         data = request.get_json()
         title = data.get('title', 'No Title')
         message = data.get('text', 'No Message')
-        print(f'Message is {message}')
+        print(f'Message received is {message}')
     else:
         return jsonify({"status": "error", "message": "Unsupported payload type"}), 400
         
@@ -28,7 +29,8 @@ def handle_webhook():
     
     # 1. Parse the text
     trade_data = parse_discord_signal(message)
-    
+    print(f"Trade data: {trade_data}")
+
     # 2. Execute trading logic if a valid signal was found
     if trade_data:
         if trade_data["type"] == "ENTRY":
