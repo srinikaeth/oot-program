@@ -17,9 +17,9 @@ trading_client = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
 
 # Simplified testing after trade data parsing 
 simulation_sequence = [
-  # {'type': 'ENTRY', 'ticker': 'SPY', 'occ_symbol': 'SPY260312P00661000', 'price': 2.0, 'quantity': 4},
-  {'type': 'ENTRY', 'ticker': 'HOOD', 'occ_symbol': 'HOOD260320C00078000', 'price': 2.0, 'quantity': 4},
-  {'type': 'EXIT_ALL', 'ticker': 'HOOD', 'occ_symbol': 'HOOD260320C00078000', 'price': 2.0, 'quantity': 4},
+  {'type': 'ENTRY', 'ticker': 'SPY', 'occ_symbol': 'SPY260318C00668000', 'price': 20.0, 'quantity': 4},
+  # {'type': 'ENTRY', 'ticker': 'HOOD', 'occ_symbol': 'HOOD260320C00078000', 'price': 2.0, 'quantity': 4},
+  {'type': 'EXIT_ALL', 'ticker': 'SPY', 'occ_symbol': 'SPY260318C00668000', 'price': 2.0, 'quantity': 4},
   # {'type': 'EXIT_PARTIAL', 'ticker': 'SPY', 'occ_symbol': 'SPY260312P00661000', 'price': 2.0, 'quantity': 4},
 ]
 

@@ -71,7 +71,7 @@ def parse_discord_signal(message_text):
                     llm_data['opt_type'], 
                     llm_data['strike']
                 )
-                llm_data['quantity'] = 1 
+                llm_data['quantity'] = 4 
             else:
                 print("Gemini missed a required field for the Entry. Ignoring.")
                 return None

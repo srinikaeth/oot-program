@@ -41,6 +41,7 @@ config.py
 active_trades.json
 Alpaca_Trading_Exploration.ipynb
 trades_logged.txt
+discord_forwarder.js
 .DS_Store
 
 # Unit test / coverage reports
