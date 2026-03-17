@@ -36,6 +36,19 @@ def send_push_notification(title, message, trade_type):
 def execute_trade(trade_data):
     """Executes buy orders and saves the OCC symbol to memory."""
     try:
+
+        # Getting quantity to execute trade
+        alert_price = trade_data.get("price")
+        
+        if alert_price:
+            dynamic_qty = calculate_buy_position_size(alert_price)
+            trade_data["quantity"] = dynamic_qty
+        else:
+            print("No price found in alert. Defaulting to 1 contract.")
+            trade_data["quantity"] = 1
+
+        print(f"Action: Buying {trade_data['quantity']} contract(s) of {trade_data['occ_symbol']}...")
+
         market_order_data = LimitOrderRequest(
             symbol=trade_data['occ_symbol'],
             qty=trade_data['quantity'],
@@ -134,3 +147,39 @@ def close_options_position(ticker, action_type):
             
     except Exception as e:
         print(f"Error closing position for {ticker}: {e}")
+
+def calculate_buy_position_size(entry_price):
+    """
+    Calculates how many contracts to buy so the total cost 
+    is approximately 2% of the total portfolio value.
+    """
+    try:
+        # 1. Get current portfolio value from Alpaca
+        account = trading_client.get_account()
+        portfolio_value = float(account.portfolio_value)
+        
+        # 2. Calculate our max spend (2%)
+        target_spend = portfolio_value * 0.02
+        
+        # 3. Calculate the actual cost of 1 contract (Price * 100 shares)
+        contract_cost = float(entry_price) * 100
+        
+        if contract_cost <= 0:
+            print("Warning: Contract price is 0. Defaulting to 1 contract.")
+            return 1
+            
+        # 4. Calculate how many whole contracts we can buy
+        qty = int(target_spend // contract_cost)
+        
+        # 5. Safety check: What if 2% isn't enough to buy even 1 contract?
+        if qty < 1:
+            print(f"Warning: 2% of portfolio (${target_spend:.2f}) cannot afford a $({contract_cost:.2f}) contract.")
+            print("Defaulting to 1 contract to stay in the trade.")
+            return 1
+            
+        print(f"Position Sizing: Portfolio=${portfolio_value:.2f} | 2%=${target_spend:.2f} | Buying {qty} contract(s).")
+        return qty
+        
+    except Exception as e:
+        print(f"Error calculating position size: {e}. Defaulting to 1 contract.")
+        return 1
