@@ -1,0 +1,17 @@
+# --- Web Server (The Webhook Catcher) ---
+Flask
+waitress
+
+# --- Broker Execution ---
+alpaca-py
+
+# --- AI Parsing ---
+google-genai
+
+# --- Push Notifications & Network Requests ---
+requests
+
+# --- Analytics Dashboard (The Glass) ---
+streamlit
+pandas
+plotly
