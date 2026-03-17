@@ -1,5 +1,6 @@
 # server.py
 from flask import Flask, request, jsonify
+from waitress import serve
 from datetime import datetime
 from config import LOG_FILE
 from parser import parse_discord_signal
@@ -50,5 +51,5 @@ def handle_webhook():
 
 if __name__ == '__main__':
     # Start the server
-    print("Starting Trading Server on port 5001...")
-    app.run(host='0.0.0.0', port=5001)
+    print("🚀 Starting Trading Server on port 5001...")
+    serve(app, host='0.0.0.0', port=5001)
