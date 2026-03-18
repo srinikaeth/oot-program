@@ -22,7 +22,7 @@ def handle_webhook():
         data = request.get_json()
         title = data.get('title', 'No Title')
         message = data.get('text', 'No Message')
-        print(f'Message received is {message}')
+        print(f'Message received is: \n {message}')
     else:
         return jsonify({"status": "error", "message": "Unsupported payload type"}), 400
         
@@ -51,5 +51,5 @@ def handle_webhook():
 
 if __name__ == '__main__':
     # Start the server
-    print("🚀 Starting Trading Server on port 5001...")
+    print("🚀 Trading Server on port 5001 started and listening for messages...")
     serve(app, host='0.0.0.0', port=5001)
