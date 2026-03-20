@@ -1,8 +1,8 @@
 # server.py
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, abort
 from waitress import serve
 from datetime import datetime
-from config import LOG_FILE
+from config import LOG_FILE, API_SECRET_KEY
 from parser import parse_discord_signal
 from trader import execute_trade, close_options_position
 
@@ -12,6 +12,12 @@ app = Flask(__name__)
 def handle_webhook():
     message = "No Message"
     title = "No Title"
+
+    provided_key = request.headers.get('X-Bot-Key')
+    
+    if provided_key != API_SECRET_KEY:
+        print("🚨 SECURITY ALERT: Blocked unauthorized request!")
+        abort(401)  # Instantly reject the request
 
     # Catch both Form Data (MacroDroid) and JSON (Local Testing)
     if request.form:
