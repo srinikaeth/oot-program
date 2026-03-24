@@ -148,6 +148,54 @@ def close_options_position(ticker, action_type):
     except Exception as e:
         print(f"Error closing position for {ticker}: {e}")
 
+def add_to_position(trade_data):
+    """Buys additional contracts for an existing position using the ticker from memory."""
+    try:
+        tracker = load_tracker()
+
+        ticker = trade_data.get("ticker")
+        if not ticker or ticker not in tracker:
+            print(f"Ignored ADD: No existing position found in memory for {ticker}.")
+            return
+
+        occ_symbol = tracker[ticker]["occ_symbol"]
+        alert_price = trade_data.get("price")
+
+        if alert_price:
+            add_qty = calculate_buy_position_size(alert_price)
+        else:
+            print("No price found in ADD alert. Defaulting to 1 contract.")
+            add_qty = 1
+
+        print(f"\n--- Adding to Position ---")
+        print(f"Ticker: {ticker} | Contract: {occ_symbol} | Adding {add_qty} contract(s) at {alert_price}...")
+
+        order_data = LimitOrderRequest(
+            symbol=occ_symbol,
+            qty=add_qty,
+            side=OrderSide.BUY,
+            limit_price=alert_price,
+            time_in_force=TimeInForce.DAY
+        )
+
+        order = trading_client.submit_order(order_data=order_data)
+        print(f"ADD Order Executed! ID: {order.id}")
+
+        total_spend = add_qty * alert_price * 100.0
+        send_push_notification(
+            title="Added to Position!",
+            message=f"BOUGHT {add_qty} more {ticker} contract(s) at {alert_price}. Total spend: ${total_spend:.2f}",
+            trade_type="ENTRY"
+        )
+
+        tracker[ticker]["ids"].append(str(order.id))
+        save_tracker(tracker)
+        print(f"Updated memory for {ticker}: added order id {order.id}")
+
+    except Exception as e:
+        print(f"ADD Trade Failed for {trade_data.get('ticker')}: {e}")
+
+
 def calculate_buy_position_size(entry_price):
     """
     Calculates how many contracts to buy so the total cost 

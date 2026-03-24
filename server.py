@@ -4,7 +4,7 @@ from waitress import serve
 from datetime import datetime
 from config import LOG_FILE, API_SECRET_KEY
 from parser import parse_discord_signal
-from trader import execute_trade, close_options_position
+from trader import execute_trade, close_options_position, add_to_position
 
 app = Flask(__name__)
 
@@ -42,6 +42,8 @@ def handle_webhook():
     if trade_data:
         if trade_data["type"] == "ENTRY":
             execute_trade(trade_data)
+        elif trade_data["type"] == "ADD":
+            add_to_position(trade_data)
         elif trade_data["type"] in ["EXIT_ALL", "EXIT_PARTIAL"]:
             close_options_position(trade_data["ticker"], trade_data["type"])
     else:
