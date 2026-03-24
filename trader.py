@@ -1,5 +1,6 @@
 # trader.py
 import requests
+import time
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest, GetOrdersRequest
@@ -135,15 +136,29 @@ def close_options_position(ticker, action_type, exit_price=None):
                 time_in_force=TimeInForce.DAY
             )
         
-            trading_client.submit_order(order_data=market_order_data)
-            print(f"Sell Order Submitted!\n")
+            sell_order = trading_client.submit_order(order_data=market_order_data)
+            print(f"Sell Order Submitted! ID: {sell_order.id}\n")
+
+            # Poll for the actual fill price (market orders fill within seconds in paper trading).
+            # Falls back to the alert price from the Discord message if polling times out.
+            actual_exit_price = exit_price
+            for _ in range(10):
+                time.sleep(0.5)
+                filled = trading_client.get_order_by_id(sell_order.id)
+                if filled.filled_avg_price is not None:
+                    actual_exit_price = float(filled.filled_avg_price)
+                    print(f"Sell filled at ${actual_exit_price:.2f}")
+                    break
+            else:
+                print(f"Fill price not available within timeout, falling back to alert price: {exit_price}")
+
             send_push_notification(
                 title="Position Closed!",
-                message=f"SOLD {sell_qty} contract(s) of {ticker}.",
+                message=f"SOLD {sell_qty} contract(s) of {ticker} at ${actual_exit_price}.",
                 trade_type="EXIT"
             )
 
-            log_trade({"type": action_type, "ticker": ticker, "occ_symbol": target_occ, "price": exit_price, "quantity": sell_qty})
+            log_trade({"type": action_type, "ticker": ticker, "occ_symbol": target_occ, "price": actual_exit_price, "quantity": sell_qty})
 
             if action_type == "EXIT_ALL":
                 del tracker[ticker]
