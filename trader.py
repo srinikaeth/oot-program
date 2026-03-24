@@ -6,6 +6,7 @@ from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest, GetOr
 from alpaca.trading.enums import OrderSide, TimeInForce, QueryOrderStatus
 from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, NTFY_TOPIC
 from memory import load_tracker, save_tracker
+from trade_logger import log_trade
 
 # Initialize Trading Client
 trading_client = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
@@ -75,11 +76,13 @@ def execute_trade(trade_data):
 
         save_tracker(tracker)
         print(f"Memorized {trade_data['ticker']} active contract: {trade_data['occ_symbol']} with id: {market_order.id}")
-            
+
+        log_trade({**trade_data, "type": "ENTRY"})
+
     except Exception as e:
         print(f"Trade Failed: {e}")
 
-def close_options_position(ticker, action_type):
+def close_options_position(ticker, action_type, exit_price=None):
     """Reads memory to find the contract, then sells it via Alpaca."""
     try:
         tracker = load_tracker()
@@ -135,11 +138,13 @@ def close_options_position(ticker, action_type):
             trading_client.submit_order(order_data=market_order_data)
             print(f"Sell Order Submitted!\n")
             send_push_notification(
-            title="Position Closed!", 
-            message=f"SOLD {sell_qty} contract(s) of {ticker}.",
-            trade_type="EXIT"
+                title="Position Closed!",
+                message=f"SOLD {sell_qty} contract(s) of {ticker}.",
+                trade_type="EXIT"
             )
-        
+
+            log_trade({"type": action_type, "ticker": ticker, "occ_symbol": target_occ, "price": exit_price, "quantity": sell_qty})
+
             if action_type == "EXIT_ALL":
                 del tracker[ticker]
                 save_tracker(tracker)
@@ -191,6 +196,8 @@ def add_to_position(trade_data):
         tracker[ticker]["ids"].append(str(order.id))
         save_tracker(tracker)
         print(f"Updated memory for {ticker}: added order id {order.id}")
+
+        log_trade({"type": "ADD", "ticker": ticker, "occ_symbol": occ_symbol, "price": alert_price, "quantity": add_qty})
 
     except Exception as e:
         print(f"ADD Trade Failed for {trade_data.get('ticker')}: {e}")

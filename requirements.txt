@@ -11,6 +11,9 @@ google-genai
 # --- Push Notifications & Network Requests ---
 requests
 
+# --- Trade Logging ---
+supabase
+
 # --- Analytics Dashboard (The Glass) ---
 streamlit
 pandas

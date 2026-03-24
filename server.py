@@ -45,7 +45,7 @@ def handle_webhook():
         elif trade_data["type"] == "ADD":
             add_to_position(trade_data)
         elif trade_data["type"] in ["EXIT_ALL", "EXIT_PARTIAL"]:
-            close_options_position(trade_data["ticker"], trade_data["type"])
+            close_options_position(trade_data["ticker"], trade_data["type"], trade_data.get("price"))
     else:
         print("No actionable trade data found in message.")
         
