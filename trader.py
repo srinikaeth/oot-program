@@ -124,6 +124,7 @@ def close_options_position(ticker, action_type, exit_price=None):
         for target_position in target_positions:
             total_qty = float(target_position.qty)
             sell_qty = max(1, int(total_qty / 2)) if action_type == "EXIT_PARTIAL" else int(total_qty)
+            is_full_exit = action_type in ("EXIT_ALL", "EXIT_STOP_LOSS")
             
             print(f"\n--- Executing Exit ---")
             print(f"Targeting memorized contract: {target_occ}")
@@ -152,15 +153,17 @@ def close_options_position(ticker, action_type, exit_price=None):
             else:
                 print(f"Fill price not available within timeout, falling back to alert price: {exit_price}")
 
+            total_proceeds = sell_qty * (actual_exit_price or 0) * 100
+            title = "Stop Loss Triggered!" if action_type == "EXIT_STOP_LOSS" else "Position Closed!"
             send_push_notification(
-                title="Position Closed!",
-                message=f"SOLD {sell_qty} contract(s) of {ticker} at ${actual_exit_price}.",
+                title=title,
+                message=f"SOLD {sell_qty} contract(s) of {ticker} at ${actual_exit_price} | Total: ${total_proceeds:,.2f}",
                 trade_type="EXIT"
             )
 
             log_trade({"type": action_type, "ticker": ticker, "occ_symbol": target_occ, "price": actual_exit_price, "quantity": sell_qty})
 
-            if action_type == "EXIT_ALL":
+            if is_full_exit:
                 del tracker[ticker]
                 save_tracker(tracker)
                 print(f"Cleared {ticker} from memory.")

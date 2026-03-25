@@ -5,6 +5,7 @@ from datetime import datetime
 from config import LOG_FILE, API_SECRET_KEY
 from parser import parse_discord_signal
 from trader import execute_trade, close_options_position, add_to_position
+from stop_loss import start_stop_loss_monitor
 
 app = Flask(__name__)
 
@@ -58,6 +59,6 @@ def handle_webhook():
     return jsonify({"status": "success"}), 200
 
 if __name__ == '__main__':
-    # Start the server
+    start_stop_loss_monitor()
     print("🚀 Trading Server on port 5001 started and listening for messages...")
     serve(app, host='0.0.0.0', port=5001)

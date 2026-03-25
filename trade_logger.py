@@ -87,7 +87,7 @@ def log_trade(trade_data: dict):
         total_value = round(price * quantity * 100, 2) if price and quantity else None
 
         pnl = None
-        if trade_type in ("EXIT_ALL", "EXIT_PARTIAL") and price and quantity and occ_symbol:
+        if trade_type in ("EXIT_ALL", "EXIT_PARTIAL", "EXIT_STOP_LOSS") and price and quantity and occ_symbol:
             pnl = _calculate_pnl(client, ticker, occ_symbol, price, quantity)
 
         row = {

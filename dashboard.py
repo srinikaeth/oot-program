@@ -200,6 +200,7 @@ with col_b:
             "ADD": "#f57c00",
             "EXIT_PARTIAL": "#fdd835",
             "EXIT_ALL": "#6a1b9a",
+            "EXIT_STOP_LOSS": "#d50000",
         },
     )
     fig_count.update_layout(
@@ -263,6 +264,7 @@ def _color_type(val):
         "ADD": "color: #f57c00",
         "EXIT_PARTIAL": "color: #f9a825",
         "EXIT_ALL": "color: #6a1b9a",
+        "EXIT_STOP_LOSS": "color: #d50000; font-weight: bold",
     }
     return colors.get(val, "")
 
