@@ -6,8 +6,7 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest, GetOrdersRequest
 from alpaca.trading.enums import OrderSide, TimeInForce, QueryOrderStatus
 from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, NTFY_TOPIC
-from memory import load_tracker, save_tracker
-from trade_logger import log_trade
+from trade_logger import log_trade, get_open_position, mark_position_closed, remove_open_order
 
 # Initialize Trading Client
 trading_client = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
@@ -68,75 +67,58 @@ def execute_trade(trade_data):
             trade_type="ENTRY"
         )
         
-        # Save to memory immediately after buying
-        tracker = load_tracker()
-        if not tracker or not trade_data['ticker'] in tracker:  # If it doesn't exist already
-            tracker[trade_data['ticker']] = {"occ_symbol": trade_data['occ_symbol'], "ids": [str(market_order.id)]}
-        else:
-            tracker[trade_data['ticker']]['ids'].append(str(market_order.id))
-
-        save_tracker(tracker)
-        print(f"Memorized {trade_data['ticker']} active contract: {trade_data['occ_symbol']} with id: {market_order.id}")
-
-        log_trade({**trade_data, "type": "ENTRY"})
+        log_trade({**trade_data, "type": "ENTRY", "order_id": str(market_order.id), "is_open": True})
+        print(f"Logged {trade_data['ticker']} entry: {trade_data['occ_symbol']} | order {market_order.id}")
 
     except Exception as e:
         print(f"Trade Failed: {e}")
 
 def close_options_position(ticker, action_type, exit_price=None):
-    """Reads memory to find the contract, then sells it via Alpaca."""
+    """Looks up the open position from Supabase, then sells it via Alpaca."""
     try:
-        tracker = load_tracker()
-        
-        if not tracker or not ticker in tracker:
-            print(f"Ignored Exit: No trades for {ticker} or any trades available.")
+        position = get_open_position(ticker)
+
+        if not position:
+            print(f"Ignored Exit: No open position found in Supabase for {ticker}.")
             return
 
-        target_occ = tracker.get(ticker)['occ_symbol']
-        market_order_ids = tracker.get(ticker)['ids']
-        
-        if not market_order_ids:
-            print(f"Ignored Exit: I don't remember opening a trade for {ticker}.")
-            return
+        target_occ = position["occ_symbol"]
+        market_order_ids = position["order_ids"]
+        is_full_exit = action_type in ("EXIT_ALL", "EXIT_STOP_LOSS")
 
-        # Check if any unfilled orders need to be canceled
+        # Cancel any unfilled buy orders before selling
         orders_to_filter = GetOrdersRequest(symbols=[target_occ], status=QueryOrderStatus.OPEN)
-        target_positions = trading_client.get_orders(orders_to_filter)
+        open_orders = trading_client.get_orders(orders_to_filter)
 
-        for target_position in target_positions:
-            if not target_position.filled_at:
-                print(f"Order {target_occ} with id {target_position.id} is not filled yet, so order will be cancelled")
-                trading_client.cancel_order_by_id(target_position.id)
-                
-                # Remove id entry after canceling
-                tracker[ticker]['ids'].remove(str(target_position.id)) 
-                save_tracker(tracker)
+        for open_order in open_orders:
+            if not open_order.filled_at:
+                print(f"Order {target_occ} id {open_order.id} is unfilled — canceling.")
+                trading_client.cancel_order_by_id(open_order.id)
+                remove_open_order(ticker, str(open_order.id))
 
         # Now get active positions to sell
-        target_positions = trading_client.get_all_positions()
+        all_positions = trading_client.get_all_positions()
+        active = [p for p in all_positions if p.symbol == target_occ]
 
-        if not target_positions:
+        if not active:
             print(f"Ignored Exit: {target_occ} is no longer in the Alpaca portfolio.")
-            del tracker[ticker]
-            save_tracker(tracker)
+            mark_position_closed(ticker)
             return
 
-        for target_position in target_positions:
+        for target_position in active:
             total_qty = float(target_position.qty)
             sell_qty = max(1, int(total_qty / 2)) if action_type == "EXIT_PARTIAL" else int(total_qty)
-            is_full_exit = action_type in ("EXIT_ALL", "EXIT_STOP_LOSS")
-            
+
             print(f"\n--- Executing Exit ---")
-            print(f"Targeting memorized contract: {target_occ}")
-            print(f"Action: Selling {sell_qty} contract(s)...")
-            
+            print(f"Contract: {target_occ} | Action: Selling {sell_qty} contract(s)...")
+
             market_order_data = MarketOrderRequest(
                 symbol=target_occ,
                 qty=sell_qty,
                 side=OrderSide.SELL,
                 time_in_force=TimeInForce.DAY
             )
-        
+
             sell_order = trading_client.submit_order(order_data=market_order_data)
             print(f"Sell Order Submitted! ID: {sell_order.id}\n")
 
@@ -161,27 +143,26 @@ def close_options_position(ticker, action_type, exit_price=None):
                 trade_type="EXIT"
             )
 
-            log_trade({"type": action_type, "ticker": ticker, "occ_symbol": target_occ, "price": actual_exit_price, "quantity": sell_qty})
+            log_trade({"type": action_type, "ticker": ticker, "occ_symbol": target_occ,
+                       "price": actual_exit_price, "quantity": sell_qty, "order_id": str(sell_order.id)})
 
             if is_full_exit:
-                del tracker[ticker]
-                save_tracker(tracker)
-                print(f"Cleared {ticker} from memory.")
-            
+                mark_position_closed(ticker)
+                print(f"Marked {ticker} as closed in Supabase.")
+
     except Exception as e:
         print(f"Error closing position for {ticker}: {e}")
 
 def add_to_position(trade_data):
-    """Buys additional contracts for an existing position using the ticker from memory."""
+    """Buys additional contracts for an existing open position looked up from Supabase."""
     try:
-        tracker = load_tracker()
-
         ticker = trade_data.get("ticker")
-        if not ticker or ticker not in tracker:
-            print(f"Ignored ADD: No existing position found in memory for {ticker}.")
+        position = get_open_position(ticker) if ticker else None
+        if not position:
+            print(f"Ignored ADD: No open position found in Supabase for {ticker}.")
             return
 
-        occ_symbol = tracker[ticker]["occ_symbol"]
+        occ_symbol = position["occ_symbol"]
         alert_price = trade_data.get("price")
 
         if alert_price:
@@ -211,11 +192,9 @@ def add_to_position(trade_data):
             trade_type="ENTRY"
         )
 
-        tracker[ticker]["ids"].append(str(order.id))
-        save_tracker(tracker)
-        print(f"Updated memory for {ticker}: added order id {order.id}")
-
-        log_trade({"type": "ADD", "ticker": ticker, "occ_symbol": occ_symbol, "price": alert_price, "quantity": add_qty})
+        log_trade({"type": "ADD", "ticker": ticker, "occ_symbol": occ_symbol,
+                   "price": alert_price, "quantity": add_qty, "order_id": str(order.id), "is_open": True})
+        print(f"Logged ADD for {ticker}: order {order.id}")
 
     except Exception as e:
         print(f"ADD Trade Failed for {trade_data.get('ticker')}: {e}")

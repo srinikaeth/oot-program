@@ -6,37 +6,32 @@ import threading
 import time
 
 from config import STOP_LOSS_PCT, STOP_LOSS_INTERVAL
-from memory import load_tracker
+from trade_logger import get_all_open_positions
 from trader import close_options_position, trading_client
-
-
-def _find_ticker(tracker: dict, occ_symbol: str) -> str | None:
-    """Returns the ticker key for a given OCC symbol, or None if not tracked."""
-    for ticker, data in tracker.items():
-        if data.get("occ_symbol") == occ_symbol:
-            return ticker
-    return None
 
 
 def check_stop_losses():
     """
-    Checks all open Alpaca positions against the tracker. Closes any position
+    Checks all open Alpaca positions against Supabase. Closes any position
     whose unrealized loss has reached or exceeded STOP_LOSS_PCT.
     """
-    tracker = load_tracker()
-    if not tracker:
+    open_positions = get_all_open_positions()  # {ticker: occ_symbol}
+    if not open_positions:
         return
 
     try:
-        positions = trading_client.get_all_positions()
+        alpaca_positions = trading_client.get_all_positions()
     except Exception as e:
-        print(f"[Stop Loss] Failed to fetch positions: {e}")
+        print(f"[Stop Loss] Failed to fetch positions from Alpaca: {e}")
         return
 
-    for position in positions:
-        ticker = _find_ticker(tracker, position.symbol)
+    # Build a reverse lookup: occ_symbol -> ticker
+    occ_to_ticker = {occ: ticker for ticker, occ in open_positions.items()}
+
+    for position in alpaca_positions:
+        ticker = occ_to_ticker.get(position.symbol)
         if not ticker:
-            continue  # Position not in our tracker — ignore
+            continue  # Not a position we opened — ignore
 
         unrealized_pct = float(position.unrealized_plpc)  # e.g. -0.43 for -43%
 

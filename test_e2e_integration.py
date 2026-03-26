@@ -6,7 +6,6 @@
 #
 # Run with:  python -m pytest test_e2e_integration.py -v -s
 
-import json
 import time
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -16,7 +15,8 @@ from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, OrderStatus, QueryOrderStatus
 from alpaca.trading.requests import GetOrdersRequest
 
-from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, API_SECRET_KEY, TRACKER_FILE
+from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, API_SECRET_KEY
+from trade_logger import mark_position_closed, get_all_open_positions
 
 URL = "http://127.0.0.1:5001/discord-webhook"
 HEADERS = {"X-Bot-Key": API_SECRET_KEY}
@@ -77,9 +77,10 @@ def cancel_open_orders(ticker: str):
 
 
 def reset_tracker():
-    """Wipes the in-memory trade tracker between tests."""
-    with open(TRACKER_FILE, "w") as f:
-        json.dump({}, f)
+    """Closes all open positions in Supabase between tests."""
+    open_positions = get_all_open_positions()
+    for ticker in open_positions:
+        mark_position_closed(ticker)
 
 
 # ---------------------------------------------------------------------------
