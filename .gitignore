@@ -38,6 +38,7 @@ pip-delete-this-directory.txt
 
 # Local project files
 config.py
+improvements.txt
 active_trades.json
 Alpaca_Trading_Exploration.ipynb
 trades_logged.txt
