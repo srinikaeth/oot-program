@@ -6,6 +6,7 @@ from config import LOG_FILE, API_SECRET_KEY
 from parser import parse_discord_signal
 from trader import execute_trade, close_options_position, add_to_position
 from stop_loss import start_stop_loss_monitor
+from eval_logger import log_parse_eval
 
 app = Flask(__name__)
 
@@ -38,6 +39,7 @@ def handle_webhook():
     # 1. Parse the text
     trade_data = parse_discord_signal(message)
     print(f"Trade data: {trade_data}")
+    log_parse_eval(message, title, trade_data)
 
     # 2. Execute trading logic if a valid signal was found
     if trade_data:
