@@ -78,9 +78,9 @@ def cancel_open_orders(ticker: str):
 
 def reset_tracker():
     """Closes all open positions in Supabase between tests."""
-    open_positions = get_all_open_positions()
-    for ticker in open_positions:
-        mark_position_closed(ticker)
+    open_positions = get_all_open_positions()  # {occ_symbol: ticker}
+    for occ_symbol in open_positions:
+        mark_position_closed(occ_symbol)
 
 
 # ---------------------------------------------------------------------------

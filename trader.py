@@ -73,13 +73,18 @@ def execute_trade(trade_data):
     except Exception as e:
         print(f"Trade Failed: {e}")
 
-def close_options_position(ticker, action_type, exit_price=None):
-    """Looks up the open position from Supabase, then sells it via Alpaca."""
+def close_options_position(ticker, action_type, exit_price=None, strike=None):
+    """Looks up the open position from Supabase, then sells it via Alpaca.
+
+    strike — when provided, targets the specific contract matching that strike,
+             allowing independent exits on two simultaneous same-ticker positions.
+    """
     try:
-        position = get_open_position(ticker)
+        position = get_open_position(ticker, strike=strike)
 
         if not position:
-            print(f"Ignored Exit: No open position found in Supabase for {ticker}.")
+            desc = f"{ticker} {strike}" if strike else ticker
+            print(f"Ignored Exit: No open position found in Supabase for {desc}.")
             return
 
         target_occ = position["occ_symbol"]
@@ -102,7 +107,7 @@ def close_options_position(ticker, action_type, exit_price=None):
 
         if not active:
             print(f"Ignored Exit: {target_occ} is no longer in the Alpaca portfolio.")
-            mark_position_closed(ticker)
+            mark_position_closed(target_occ)
             return
 
         for target_position in active:
@@ -147,8 +152,8 @@ def close_options_position(ticker, action_type, exit_price=None):
                        "price": actual_exit_price, "quantity": sell_qty, "order_id": str(sell_order.id)})
 
             if is_full_exit:
-                mark_position_closed(ticker)
-                print(f"Marked {ticker} as closed in Supabase.")
+                mark_position_closed(target_occ)
+                print(f"Marked {target_occ} as closed in Supabase.")
 
     except Exception as e:
         print(f"Error closing position for {ticker}: {e}")
@@ -157,7 +162,7 @@ def add_to_position(trade_data):
     """Buys additional contracts for an existing open position looked up from Supabase."""
     try:
         ticker = trade_data.get("ticker")
-        position = get_open_position(ticker) if ticker else None
+        position = get_open_position(ticker, strike=trade_data.get("strike")) if ticker else None
         if not position:
             print(f"Ignored ADD: No open position found in Supabase for {ticker}.")
             return

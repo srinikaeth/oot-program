@@ -7,6 +7,7 @@ from parser import parse_discord_signal
 from trader import execute_trade, close_options_position, add_to_position
 from stop_loss import start_stop_loss_monitor
 from eval_logger import log_parse_eval
+from trade_logger import get_all_open_positions
 
 app = Flask(__name__)
 
@@ -36,8 +37,9 @@ def handle_webhook():
         
     print(f"\n--- Signal Received from {title} ---")
     
-    # 1. Parse the text
-    trade_data = parse_discord_signal(message)
+    # 1. Parse the text, providing open positions as context for the LLM
+    open_positions = get_all_open_positions()
+    trade_data = parse_discord_signal(message, open_positions=open_positions)
     print(f"Trade data: {trade_data}")
     log_parse_eval(message, title, trade_data)
 
@@ -48,7 +50,7 @@ def handle_webhook():
         elif trade_data["type"] == "ADD":
             add_to_position(trade_data)
         elif trade_data["type"] in ["EXIT_ALL", "EXIT_PARTIAL"]:
-            close_options_position(trade_data["ticker"], trade_data["type"], trade_data.get("price"))
+            close_options_position(trade_data["ticker"], trade_data["type"], trade_data.get("price"), trade_data.get("strike"))
     else:
         print("No actionable trade data found in message.")
         

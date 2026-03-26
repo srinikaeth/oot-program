@@ -46,10 +46,17 @@ def _get_client() -> Optional[Client]:
 # Active position tracker — replaces active_trades.json
 # ---------------------------------------------------------------------------
 
-def get_open_position(ticker: str) -> Optional[dict]:
+def get_open_position(ticker: str, strike: Optional[str] = None) -> Optional[dict]:
     """
     Returns {'occ_symbol': str, 'order_ids': [str]} for the active position
     on a ticker, or None if no open position exists.
+
+    If strike is provided, only rows whose occ_symbol contains that strike are
+    considered — allowing two simultaneous positions on the same ticker (e.g.
+    SPY 656P and SPY 658P) to be addressed independently.
+
+    When no strike is given and multiple contracts are open for the same ticker,
+    the most recently opened contract is returned.
     """
     client = _get_client()
     if not client:
@@ -65,8 +72,19 @@ def get_open_position(ticker: str) -> Optional[dict]:
         rows = response.data
         if not rows:
             return None
-        occ_symbol = rows[0]["occ_symbol"]
-        order_ids = [r["order_id"] for r in rows if r.get("order_id")]
+
+        if strike:
+            # OCC strike field is strike * 1000, zero-padded to 8 digits
+            # e.g. strike "658" → "00658000"
+            strike_padded = f"{int(float(strike)) * 1000:08d}"
+            rows = [r for r in rows if strike_padded in (r.get("occ_symbol") or "")]
+            if not rows:
+                return None
+
+        # rows[-1] is the most recently inserted — use it as the target occ_symbol
+        occ_symbol = rows[-1]["occ_symbol"]
+        order_ids = [r["order_id"] for r in rows
+                     if r.get("order_id") and r["occ_symbol"] == occ_symbol]
         return {"occ_symbol": occ_symbol, "order_ids": order_ids}
     except Exception as e:
         print(f"[Supabase] Failed to get open position for {ticker}: {e}")
@@ -75,7 +93,9 @@ def get_open_position(ticker: str) -> Optional[dict]:
 
 def get_all_open_positions() -> dict:
     """
-    Returns {ticker: occ_symbol} for all tickers with an open position.
+    Returns {occ_symbol: ticker} for every open contract.
+    Keying by occ_symbol (not ticker) means two simultaneous positions on the
+    same ticker — e.g. SPY 656P and SPY 658P — both appear in the result.
     Used by the stop loss monitor.
     """
     client = _get_client()
@@ -88,26 +108,29 @@ def get_all_open_positions() -> dict:
             .eq("is_open", True)
             .execute()
         )
-        # Multiple open rows per ticker (ENTRY + ADDs) — deduplicate
         result = {}
         for row in response.data:
-            result[row["ticker"]] = row["occ_symbol"]
+            result[row["occ_symbol"]] = row["ticker"]
         return result
     except Exception as e:
         print(f"[Supabase] Failed to get all open positions: {e}")
         return {}
 
 
-def mark_position_closed(ticker: str):
-    """Marks all open rows for a ticker as is_open = False."""
+def mark_position_closed(occ_symbol: str):
+    """
+    Marks all open rows for a specific contract (occ_symbol) as is_open = False.
+    Closing by occ_symbol rather than ticker means two simultaneous positions on
+    the same ticker are closed independently.
+    """
     client = _get_client()
     if not client:
         return
     try:
-        client.table("trades").update({"is_open": False}).eq("ticker", ticker).eq("is_open", True).execute()
-        print(f"[Supabase] Marked {ticker} position as closed.")
+        client.table("trades").update({"is_open": False}).eq("occ_symbol", occ_symbol).eq("is_open", True).execute()
+        print(f"[Supabase] Marked {occ_symbol} as closed.")
     except Exception as e:
-        print(f"[Supabase] Failed to mark {ticker} as closed: {e}")
+        print(f"[Supabase] Failed to mark {occ_symbol} as closed: {e}")
 
 
 def remove_open_order(ticker: str, order_id: str):
