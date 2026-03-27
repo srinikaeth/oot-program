@@ -14,8 +14,9 @@ def check_stop_losses():
     """
     Checks all open Alpaca positions against Supabase. Closes any position
     whose unrealized loss has reached or exceeded STOP_LOSS_PCT.
+    Monitors all sources simultaneously.
     """
-    open_positions = get_all_open_positions()  # {occ_symbol: ticker}
+    open_positions = get_all_open_positions()  # {occ_symbol: {"ticker": str, "source": str}}
     if not open_positions:
         return
 
@@ -26,25 +27,26 @@ def check_stop_losses():
         return
 
     for position in alpaca_positions:
-        ticker = open_positions.get(position.symbol)
-        if not ticker:
+        entry = open_positions.get(position.symbol)
+        if not entry:
             continue  # Not a position we opened — ignore
 
+        ticker = entry["ticker"]
+        source = entry["source"]
         unrealized_pct = float(position.unrealized_plpc)  # e.g. -0.43 for -43%
 
         if unrealized_pct <= -STOP_LOSS_PCT:
             current_price = float(position.current_price)
             # Extract strike from occ_symbol so multi-position same-ticker exits
             # target the correct contract. OCC format: TICKER + YYMMDD + C/P + 8-digit-strike
-            # e.g. SPY260325P00658000 → strike field = "00658000" (chars -8 to end)
             occ = position.symbol
-            raw_strike = occ[-8:]  # e.g. "00658000"
-            strike = str(int(raw_strike) // 1000)  # e.g. "658"
+            raw_strike = occ[-8:]
+            strike = str(int(raw_strike) // 1000)
             print(
-                f"[Stop Loss] TRIGGERED for {ticker} ({occ}): "
+                f"[Stop Loss] TRIGGERED for {ticker} ({occ}) [{source}]: "
                 f"{unrealized_pct:.1%} loss. Closing at ${current_price:.2f}."
             )
-            close_options_position(ticker, "EXIT_STOP_LOSS", current_price, strike)
+            close_options_position(ticker, "EXIT_STOP_LOSS", current_price, strike, source)
 
 
 def _monitor_loop():

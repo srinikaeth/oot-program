@@ -41,6 +41,8 @@ def load_trades() -> pd.DataFrame:
     df["price"] = pd.to_numeric(df["price"], errors="coerce")
     df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce")
     df["total_value"] = pd.to_numeric(df["total_value"], errors="coerce")
+    if "source" not in df.columns:
+        df["source"] = "unknown"
     return df
 
 
@@ -99,6 +101,12 @@ CHART_LAYOUT = dict(
 st.title("📈 Options Trading Dashboard")
 st.caption("Auto-refreshes every 30 seconds. Hit R to force refresh.")
 
+# --- Sidebar source filter ---
+with st.sidebar:
+    st.header("Filters")
+    source_options = ["All Sources", "waxui", "zabes"]
+    selected_source = st.selectbox("Signal Source", source_options, index=0)
+
 tab_trading, tab_parser = st.tabs(["Trading", "Parser Accuracy"])
 
 
@@ -111,6 +119,13 @@ with tab_trading:
     if df.empty:
         st.info("No trades logged yet. Send a signal to get started.")
         st.stop()
+
+    # Apply source filter from sidebar
+    if selected_source != "All Sources":
+        df = df[df["source"] == selected_source]
+        if df.empty:
+            st.info(f"No trades logged for source: {selected_source}")
+            st.stop()
 
     closed = get_closed_trades(df)
     summary = get_summary(closed)
@@ -213,7 +228,7 @@ with tab_trading:
     display_df = display_df.rename(columns={
         "timestamp": "Time", "ticker": "Ticker", "occ_symbol": "Contract",
         "type": "Type", "price": "Price", "quantity": "Qty",
-        "total_value": "Value", "pnl": "P&L",
+        "total_value": "Value", "pnl": "P&L", "source": "Source",
     })
 
     def _color_type(val):
@@ -232,7 +247,7 @@ with tab_trading:
         return ""
 
     styled = (
-        display_df[["Time", "Ticker", "Contract", "Type", "Price", "Qty", "Value", "P&L"]]
+        display_df[["Time", "Source", "Ticker", "Contract", "Type", "Price", "Qty", "Value", "P&L"]]
         .style.applymap(_color_type, subset=["Type"])
               .applymap(_color_pnl, subset=["P&L"])
     )
