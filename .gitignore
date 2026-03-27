@@ -43,6 +43,7 @@ active_trades.json
 Alpaca_Trading_Exploration.ipynb
 trades_logged.txt
 discord_forwarder.js
+discord_forwarder_multiple.js
 evals_march_25.txt
 .DS_Store
 
