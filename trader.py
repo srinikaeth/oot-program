@@ -13,15 +13,13 @@ trading_client = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
 
 def send_push_notification(title, message, trade_type):
     """Sends a real-time push notification to your phone via ntfy.sh"""
-    # Replace this with your secret topic name!
-    topic = NTFY_TOPIC 
-    
-    # Assign the correct emojis based on the action
+    topic = NTFY_TOPIC
+
     if trade_type == "ENTRY":
-        tags = "arrow_up, chart_with_upwards_trend" # ⬆️ 📈
+        tags = "arrow_up, chart_with_upwards_trend"
     else:
-        tags = "arrow_down, moneybag" # ⬇️ 💰
-        
+        tags = "arrow_down, moneybag"
+
     try:
         requests.post(
             f"https://ntfy.sh/{topic}",
@@ -35,12 +33,10 @@ def send_push_notification(title, message, trade_type):
         print(f"Failed to send push notification: {e}")
 
 def execute_trade(trade_data):
-    """Executes buy orders and saves the OCC symbol to memory."""
+    """Executes buy orders and saves the OCC symbol to Supabase."""
     try:
-
-        # Getting quantity to execute trade
         alert_price = trade_data.get("price")
-        
+
         if alert_price:
             dynamic_qty = calculate_buy_position_size(alert_price)
             trade_data["quantity"] = dynamic_qty
@@ -62,33 +58,35 @@ def execute_trade(trade_data):
         print(f"Trade Executed! ID: {market_order.id}")
         total_spend = trade_data['quantity'] * trade_data['price'] * 100.0
         send_push_notification(
-            title="Trade Executed!", 
+            title="Trade Executed!",
             message=f"BOUGHT {trade_data['quantity']} {trade_data['ticker']} contract(s) at {trade_data['price']}. Total spend: {total_spend}",
             trade_type="ENTRY"
         )
-        
+
         log_trade({**trade_data, "type": "ENTRY", "order_id": str(market_order.id), "is_open": True})
         print(f"Logged {trade_data['ticker']} entry: {trade_data['occ_symbol']} | order {market_order.id}")
 
     except Exception as e:
         print(f"Trade Failed: {e}")
 
-def close_options_position(ticker, action_type, exit_price=None, strike=None):
-    """Looks up the open position from Supabase, then sells it via Alpaca.
+def close_options_position(ticker, action_type, exit_price=None, strike=None, source=None):
+    """Looks up the open position from Supabase for a specific source, then sells it via Alpaca.
 
+    source — "waxui" or "zabes". Scopes the lookup so only that trader's position
+             is closed, leaving the other source's position untouched.
     strike — when provided, targets the specific contract matching that strike,
              allowing independent exits on two simultaneous same-ticker positions.
     """
     try:
-        position = get_open_position(ticker, strike=strike)
+        position = get_open_position(ticker, source=source, strike=strike)
 
         if not position:
             desc = f"{ticker} {strike}" if strike else ticker
-            print(f"Ignored Exit: No open position found in Supabase for {desc}.")
+            src_str = f" [{source}]" if source else ""
+            print(f"Ignored Exit: No open position found in Supabase for {desc}{src_str}.")
             return
 
         target_occ = position["occ_symbol"]
-        market_order_ids = position["order_ids"]
         is_full_exit = action_type in ("EXIT_ALL", "EXIT_STOP_LOSS")
 
         # Cancel any unfilled buy orders before selling
@@ -99,7 +97,7 @@ def close_options_position(ticker, action_type, exit_price=None, strike=None):
             if not open_order.filled_at:
                 print(f"Order {target_occ} id {open_order.id} is unfilled — canceling.")
                 trading_client.cancel_order_by_id(open_order.id)
-                remove_open_order(ticker, str(open_order.id))
+                remove_open_order(ticker, str(open_order.id), source=source)
 
         # Now get active positions to sell
         all_positions = trading_client.get_all_positions()
@@ -107,7 +105,7 @@ def close_options_position(ticker, action_type, exit_price=None, strike=None):
 
         if not active:
             print(f"Ignored Exit: {target_occ} is no longer in the Alpaca portfolio.")
-            mark_position_closed(target_occ)
+            mark_position_closed(target_occ, source=source)
             return
 
         for target_position in active:
@@ -127,8 +125,7 @@ def close_options_position(ticker, action_type, exit_price=None, strike=None):
             sell_order = trading_client.submit_order(order_data=market_order_data)
             print(f"Sell Order Submitted! ID: {sell_order.id}\n")
 
-            # Poll for the actual fill price (market orders fill within seconds in paper trading).
-            # Falls back to the alert price from the Discord message if polling times out.
+            # Poll for the actual fill price
             actual_exit_price = exit_price
             for _ in range(10):
                 time.sleep(0.5)
@@ -148,11 +145,14 @@ def close_options_position(ticker, action_type, exit_price=None, strike=None):
                 trade_type="EXIT"
             )
 
-            log_trade({"type": action_type, "ticker": ticker, "occ_symbol": target_occ,
-                       "price": actual_exit_price, "quantity": sell_qty, "order_id": str(sell_order.id)})
+            log_trade({
+                "type": action_type, "ticker": ticker, "occ_symbol": target_occ,
+                "price": actual_exit_price, "quantity": sell_qty,
+                "order_id": str(sell_order.id), "source": source,
+            })
 
             if is_full_exit:
-                mark_position_closed(target_occ)
+                mark_position_closed(target_occ, source=source)
                 print(f"Marked {target_occ} as closed in Supabase.")
 
     except Exception as e:
@@ -162,9 +162,11 @@ def add_to_position(trade_data):
     """Buys additional contracts for an existing open position looked up from Supabase."""
     try:
         ticker = trade_data.get("ticker")
-        position = get_open_position(ticker, strike=trade_data.get("strike")) if ticker else None
+        source = trade_data.get("source")
+        position = get_open_position(ticker, source=source, strike=trade_data.get("strike")) if ticker else None
         if not position:
-            print(f"Ignored ADD: No open position found in Supabase for {ticker}.")
+            src_str = f" [{source}]" if source else ""
+            print(f"Ignored ADD: No open position found in Supabase for {ticker}{src_str}.")
             return
 
         occ_symbol = position["occ_symbol"]
@@ -197,8 +199,8 @@ def add_to_position(trade_data):
             trade_type="ENTRY"
         )
 
-        log_trade({"type": "ADD", "ticker": ticker, "occ_symbol": occ_symbol,
-                   "price": alert_price, "quantity": add_qty, "order_id": str(order.id), "is_open": True})
+        log_trade({**trade_data, "type": "ADD", "occ_symbol": occ_symbol,
+                   "quantity": add_qty, "order_id": str(order.id), "is_open": True})
         print(f"Logged ADD for {ticker}: order {order.id}")
 
     except Exception as e:
@@ -207,36 +209,30 @@ def add_to_position(trade_data):
 
 def calculate_buy_position_size(entry_price):
     """
-    Calculates how many contracts to buy so the total cost 
+    Calculates how many contracts to buy so the total cost
     is approximately 2% of the total portfolio value.
     """
     try:
-        # 1. Get current portfolio value from Alpaca
         account = trading_client.get_account()
         portfolio_value = float(account.portfolio_value)
-        
-        # 2. Calculate our max spend (2%)
+
         target_spend = portfolio_value * 0.02
-        
-        # 3. Calculate the actual cost of 1 contract (Price * 100 shares)
         contract_cost = float(entry_price) * 100
-        
+
         if contract_cost <= 0:
             print("Warning: Contract price is 0. Defaulting to 1 contract.")
             return 1
-            
-        # 4. Calculate how many whole contracts we can buy
+
         qty = int(target_spend // contract_cost)
-        
-        # 5. Safety check: What if 2% isn't enough to buy even 1 contract?
+
         if qty < 1:
             print(f"Warning: 2% of portfolio (${target_spend:.2f}) cannot afford a $({contract_cost:.2f}) contract.")
             print("Defaulting to 1 contract to stay in the trade.")
             return 1
-            
+
         print(f"Position Sizing: Portfolio=${portfolio_value:.2f} | 2%=${target_spend:.2f} | Buying {qty} contract(s).")
         return qty
-        
+
     except Exception as e:
         print(f"Error calculating position size: {e}. Defaulting to 1 contract.")
         return 1
