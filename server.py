@@ -14,8 +14,10 @@ app = Flask(__name__)
 
 def normalize_source(title: str) -> str:
     """
-    Maps the Discord channel title sent by ScriptCat to a canonical source name
-    stored in the trades table. Add new entries here when adding more sources.
+    Fallback: infers source from the Discord channel title string.
+    Used when the payload does not include an explicit source field
+    (e.g. older ScriptCat versions or MacroDroid).
+    Add new entries here when adding more sources.
     """
     t = title.lower()
     if "waxui" in t:
@@ -49,7 +51,10 @@ def handle_webhook():
     else:
         return jsonify({"status": "error", "message": "Unsupported payload type"}), 400
 
-    source = normalize_source(title)
+    # Prefer the explicit source field sent by ScriptCat; fall back to
+    # inferring from the title for MacroDroid or older script versions.
+    raw_source = (data.get("source") if request.is_json else request.form.get("source"))
+    source = raw_source.strip().lower() if raw_source else normalize_source(title)
     print(f"\n--- Signal Received from {title} (source: {source}) ---")
 
     # 1. Parse the text, providing this source's open positions as context for the LLM
