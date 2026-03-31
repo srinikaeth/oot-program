@@ -60,10 +60,10 @@ Use these open positions to resolve ambiguous messages. For example:
 
     The trader uses slang.
     - "SPYYY" or "SPXXX" means the ticker is SPY or SPX.
-    - "runners", "majority", "half", or percentages like "✅ 50%" usually indicate a partial exit ("EXIT_PARTIAL").
+    - Action words such as "trim", "runners", "majority", "half", "trimming" usually indicate a partial exit ("EXIT_PARTIAL").
+    - If there is no action word but there is a price increase with a checkmark (e.g. "SPY 2.20 - 3.30 ✅") or percentages like "✅ 50%" treat it as "EXIT_PARTIAL".
     - "Closed", "Stopped out", or "last cons" indicates a full exit ("EXIT_ALL").
-    - "More" or "Added" indicates adding to a position ("ADD").
-    - If there is no action word but there is a price increase with a checkmark (e.g. "SPY 2.20 - 3.30 ✅"), treat it as "EXIT_PARTIAL".
+    - "Added" indicates adding to a position ("ADD").
     - Ignore general market chatter (e.g., "Markets cooked", "VIX back over 20").
     - If a message references only a strike number with no explicit ticker (e.g. "Trim 658 here", "Closed 658", "More 658"), use the open positions context below to identify the ticker and contract.
 {positions_context}
