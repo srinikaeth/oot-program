@@ -65,7 +65,9 @@ Use these open positions to resolve ambiguous messages. For example:
     - "Closed", "Stopped out", or "last cons" indicates a full exit ("EXIT_ALL").
     - Ignore general market chatter (e.g., "Markets cooked", "VIX back over 20").
     - If a message references only a strike number with no explicit ticker (e.g. "Trim 658 here", "Closed 658", "More 658"), use the open positions context below to identify the ticker and contract.
-{positions_context}
+    {positions_context}
+    - If a message says "Stop" but with no explicit ticker (eg. "Stopped out of Longs", "Stopped all cons"), this indicates "EXIT_ALL". In this case, for the ticker, use the open positions context below to identify the ticker and contract.
+    {positions_context}
     Respond ONLY with a valid JSON object using this exact structure. If the message is chatter and contains no trade, return {{"type": "IGNORE"}}.
 
     {{
