@@ -63,18 +63,17 @@ Use these open positions to resolve ambiguous messages. For example:
     - Action words such as "trim", "runners", "majority", "half", "trimming" usually indicate a partial exit ("EXIT_PARTIAL").
     - If there is no action word but there is a price increase with a checkmark (e.g. "SPY 2.20 - 3.30 ✅") or percentages like "✅ 50%" treat it as "EXIT_PARTIAL".
     - "Closed", "Stopped out", or "last cons" indicates a full exit ("EXIT_ALL").
-    - "Added" indicates adding to a position ("ADD").
     - Ignore general market chatter (e.g., "Markets cooked", "VIX back over 20").
     - If a message references only a strike number with no explicit ticker (e.g. "Trim 658 here", "Closed 658", "More 658"), use the open positions context below to identify the ticker and contract.
 {positions_context}
     Respond ONLY with a valid JSON object using this exact structure. If the message is chatter and contains no trade, return {{"type": "IGNORE"}}.
 
     {{
-        "type": "ENTRY" | "EXIT_ALL" | "EXIT_PARTIAL" | "ADD" | "IGNORE",
+        "type": "ENTRY" | "EXIT_ALL" | "EXIT_PARTIAL" | "IGNORE",
         "ticker": "String (Standardize to SPY, SPX, HOOD, etc.)",
         "exp_date": "String (MM/DD, only include if ENTRY, otherwise null)",
         "strike": "String (e.g., '682'). Always include for ENTRY. Also include for exits and ADDs when the strike is explicitly mentioned in the message (e.g. 'Closed SPY 658', 'Trim 658 here', 'More 658'). Otherwise null.",
-        "opt_type": "String ('C' or 'P', only include if ENTRY, otherwise null)",
+        "opt_type": "String ('C' or 'P', only include if ExxNTRY, otherwise null)",
         "price": "Number (Extract the execution price, e.g., 2.20. If multiple prices are shown like '2.20 - 2.70', use the current/highest one)"
     }}
 
