@@ -29,7 +29,7 @@ def _decode_occ(occ: str, ticker: str) -> str:
         return occ
 
 
-def parse_discord_signal(message_text, open_positions=None):
+def parse_discord_signal(message_text, open_positions=None, last_ticker=None):
     """Passes the raw Discord text to Gemini to extract trading data.
 
     open_positions — optional dict {occ_symbol: ticker} of currently open positions.
@@ -68,6 +68,8 @@ Use these open positions to resolve ambiguous messages. For example:
     {positions_context}
     - If a message says "Stop" but with no explicit ticker (eg. "Stopped out of Longs", "Stopped all cons"), this indicates "EXIT_ALL". In this case, for the ticker, use the open positions context below to identify the ticker and contract.
     {positions_context}
+    - If a message is an ENTRY but has no explicit ticker, use the last used ticker: "{last_ticker or 'unknown'}". Only apply this if a ticker cannot be inferred from the message itself.
+    - If a message contains language such as "Added to" a specific order or ticker, classify that as IGNORE
     Respond ONLY with a valid JSON object using this exact structure. If the message is chatter and contains no trade, return {{"type": "IGNORE"}}.
 
     {{

@@ -7,7 +7,7 @@ from parser import parse_discord_signal
 from trader import execute_trade, close_options_position, add_to_position
 from stop_loss import start_stop_loss_monitor
 from eval_logger import log_parse_eval
-from trade_logger import get_all_open_positions
+from trade_logger import get_all_open_positions, get_last_ticker
 
 app = Flask(__name__)
 
@@ -61,7 +61,8 @@ def handle_webhook():
     open_positions_raw = get_all_open_positions(source=source)
     # Parser expects {occ_symbol: ticker} — extract from the full dict
     parser_positions = {occ: data["ticker"] for occ, data in open_positions_raw.items()}
-    trade_data = parse_discord_signal(message, open_positions=parser_positions)
+    last_ticker = get_last_ticker(source)
+    trade_data = parse_discord_signal(message, open_positions=parser_positions, last_ticker=last_ticker)
     print(f"Trade data: {trade_data}")
     log_parse_eval(message, title, trade_data)
 

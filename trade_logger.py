@@ -116,6 +116,28 @@ def get_all_open_positions(source: Optional[str] = None) -> dict:
         return {}
 
 
+def get_last_ticker(source: str) -> Optional[str]:
+    """Returns the ticker from the most recent trade for a given source, or None."""
+    client = _get_client()
+    if not client:
+        return None
+    try:
+        response = (
+            client.table("trades")
+            .select("ticker")
+            .eq("source", source)
+            .order("timestamp", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if response.data:
+            return response.data[0]["ticker"]
+        return None
+    except Exception as e:
+        print(f"[Supabase] Failed to get last ticker for {source}: {e}")
+        return None
+
+
 def mark_position_closed(occ_symbol: str, source: Optional[str] = None):
     """
     Marks all open rows for a specific contract as is_open = False.
