@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discord MULTIPLE Trade Forwarder (ScriptCat)
 // @namespace    http://scriptcat.org/
-// @version      1.4
+// @version      1.5
 // @description  Forwards Discord messages to a local Flask server with highly visible console logs
 // @match        https://discord.com/channels/*
 // @grant        GM_xmlhttpRequest
@@ -34,6 +34,8 @@
     const styleText    = "color: #ffffff; font-size: 18px; font-style: italic; padding-left: 10px;";
     const styleSuccess = "color: #39ff14; font-size: 20px; font-weight: bold; padding: 5px;";
     const styleError   = "color: #ff0000; font-size: 24px; font-weight: bold; background: #440000; padding: 8px; border: 2px solid red;";
+
+    const SCRIPT_START_TIME = Date.now();
 
     console.log("%c[TradeForwarder] 🚀 ScriptCat injected and waiting...", styleInit);
 
@@ -72,6 +74,10 @@
         mutations.forEach((mutation) => {
             mutation.addedNodes.forEach((node) => {
                 if (node.nodeName === "LI" && node.id && node.id.startsWith("chat-messages-")) {
+                    // Extract Discord snowflake message ID and skip historical messages
+                    const messageId = node.id.split("-").pop();
+                    const messageTimestamp = Number(BigInt(messageId) >> 22n) + 1420070400000;
+                    if (messageTimestamp < SCRIPT_START_TIME) return;
 
                     setTimeout(() => {
                         try {
