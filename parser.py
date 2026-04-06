@@ -77,7 +77,7 @@ Use these open positions to resolve ambiguous messages. For example:
         "ticker": "String (Standardize to SPY, SPX, HOOD, etc.)",
         "exp_date": "String (MM/DD, only include if ENTRY, otherwise null)",
         "strike": "String (e.g., '682'). Always include for ENTRY. Also include for exits and ADDs when the strike is explicitly mentioned in the message (e.g. 'Closed SPY 658', 'Trim 658 here', 'More 658'). Otherwise null.",
-        "opt_type": "String ('C' or 'P', only include if ExxNTRY, otherwise null)",
+        "opt_type": "String ('C' or 'P', only include if ENTRY, otherwise null)",
         "price": "Number (Extract the execution price, e.g., 2.20. If multiple prices are shown like '2.20 - 2.70', use the current/highest one)"
     }}
 
