@@ -42,12 +42,12 @@ def handle_webhook():
     if request.form:
         title = request.form.get('title', 'No Title')
         message = request.form.get('text', 'No Message')
-        print(f'Message received is {message}')
+        print(f'\n--- Message received is: \n {message} ---')
     elif request.is_json:
         data = request.get_json()
         title = data.get('title', 'No Title')
         message = data.get('text', 'No Message')
-        print(f'Message received is: \n {message}')
+        print(f'\n--- Message received is: \n {message} ---')
     else:
         return jsonify({"status": "error", "message": "Unsupported payload type"}), 400
 
@@ -55,7 +55,7 @@ def handle_webhook():
     # inferring from the title for MacroDroid or older script versions.
     raw_source = (data.get("source") if request.is_json else request.form.get("source"))
     source = raw_source.strip().lower() if raw_source else normalize_source(title)
-    print(f"\n--- Signal Received from {title} (source: {source}) ---")
+    print(f"Processing signal from {title} (source: {source})...")
 
     # 1. Parse the text, providing this source's open positions as context for the LLM
     open_positions_raw = get_all_open_positions(source=source)

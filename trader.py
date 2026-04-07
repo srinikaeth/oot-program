@@ -46,11 +46,12 @@ def execute_trade(trade_data):
 
         print(f"Action: Buying {trade_data['quantity']} contract(s) of {trade_data['occ_symbol']}...")
 
+        limit_price = round(trade_data['price'] * 1.15, 2)
         market_order_data = LimitOrderRequest(
             symbol=trade_data['occ_symbol'],
             qty=trade_data['quantity'],
             side=OrderSide.BUY,
-            limit_price=trade_data['price'],
+            limit_price=limit_price,
             time_in_force=TimeInForce.DAY
         )
 
@@ -181,11 +182,12 @@ def add_to_position(trade_data):
         print(f"\n--- Adding to Position ---")
         print(f"Ticker: {ticker} | Contract: {occ_symbol} | Adding {add_qty} contract(s) at {alert_price}...")
 
+        limit_price = round(alert_price * 1.15, 2)
         order_data = LimitOrderRequest(
             symbol=occ_symbol,
             qty=add_qty,
             side=OrderSide.BUY,
-            limit_price=alert_price,
+            limit_price=limit_price,
             time_in_force=TimeInForce.DAY
         )
 
