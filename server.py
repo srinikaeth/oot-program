@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, abort
 from waitress import serve
 from datetime import datetime
 from config import LOG_FILE, API_SECRET_KEY
-from parser import parse_discord_signal
+from parser import parse_signal
 from trader import execute_trade, close_options_position, add_to_position
 from stop_loss import start_stop_loss_monitor
 from eval_logger import log_parse_eval
@@ -62,7 +62,7 @@ def handle_webhook():
     # Parser expects {occ_symbol: ticker} — extract from the full dict
     parser_positions = {occ: data["ticker"] for occ, data in open_positions_raw.items()}
     last_ticker = get_last_ticker(source)
-    trade_data = parse_discord_signal(message, open_positions=parser_positions, last_ticker=last_ticker)
+    trade_data = parse_signal(message, source, open_positions=parser_positions, last_ticker=last_ticker)
     print(f"Trade data: {trade_data}")
     log_parse_eval(message, title, trade_data)
 

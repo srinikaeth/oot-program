@@ -26,6 +26,7 @@
         "1347238168109387857": "waxui",  // OOT - Waxui
         "782068070977110027":  "zabes",  // OOT - Zabes
         "1476499168817188876": "test",   // Test server
+        "LUIGI_CHANNEL_ID_HERE": "luigi", // Luigi channel — replace with actual ID
     };
 
     // CSS Styles for the Console

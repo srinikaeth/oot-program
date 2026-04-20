@@ -1,7 +1,12 @@
 # dashboard.py
 # Run with: streamlit run dashboard.py
 
+import datetime
+
 import pandas as pd
+# Set this to the cutoff date — data before this date is excluded from the dashboard
+DATA_START_DATE = datetime.date(2026, 4, 14)
+
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
@@ -118,6 +123,12 @@ with tab_trading:
 
     if df.empty:
         st.info("No trades logged yet. Send a signal to get started.")
+        st.stop()
+
+    # Apply date cutoff
+    df = df[df["timestamp"].dt.date >= DATA_START_DATE]
+    if df.empty:
+        st.info(f"No trades on or after {DATA_START_DATE}.")
         st.stop()
 
     # Apply source filter from sidebar
@@ -262,6 +273,11 @@ with tab_parser:
 
     if eval_df.empty:
         st.info("No parser evaluations logged yet.")
+        st.stop()
+
+    eval_df = eval_df[eval_df["timestamp"].dt.date >= DATA_START_DATE]
+    if eval_df.empty:
+        st.info(f"No parser evaluations on or after {DATA_START_DATE}.")
         st.stop()
 
     labeled_df   = eval_df[eval_df["is_correct"].notna()].copy()
