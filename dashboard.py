@@ -5,7 +5,7 @@ import datetime
 
 import pandas as pd
 # Set this to the cutoff date — data before this date is excluded from the dashboard
-DATA_START_DATE = datetime.date(2026, 4, 14)
+DATA_START_DATE = datetime.date(2026, 4, 15)
 
 import plotly.express as px
 import plotly.graph_objects as go
