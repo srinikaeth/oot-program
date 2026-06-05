@@ -218,7 +218,7 @@ def calculate_buy_position_size(entry_price):
         account = trading_client.get_account()
         portfolio_value = float(account.portfolio_value)
 
-        target_spend = portfolio_value * 0.02
+        target_spend = portfolio_value * 0.25
         contract_cost = float(entry_price) * 100
 
         if contract_cost <= 0:
