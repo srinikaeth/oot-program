@@ -212,7 +212,7 @@ def add_to_position(trade_data):
 def calculate_buy_position_size(entry_price):
     """
     Calculates how many contracts to buy so the total cost
-    is approximately 2% of the total portfolio value.
+    is approximately 25% of the total portfolio value.
     """
     try:
         account = trading_client.get_account()
