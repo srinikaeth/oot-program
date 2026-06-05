@@ -228,11 +228,11 @@ def calculate_buy_position_size(entry_price):
         qty = int(target_spend // contract_cost)
 
         if qty < 1:
-            print(f"Warning: 2% of portfolio (${target_spend:.2f}) cannot afford a $({contract_cost:.2f}) contract.")
+            print(f"Warning: 25% of portfolio (${target_spend:.2f}) cannot afford a $({contract_cost:.2f}) contract.")
             print("Defaulting to 1 contract to stay in the trade.")
             return 1
 
-        print(f"Position Sizing: Portfolio=${portfolio_value:.2f} | 2%=${target_spend:.2f} | Buying {qty} contract(s).")
+        print(f"Position Sizing: Portfolio=${portfolio_value:.2f} | 25%=${target_spend:.2f} | Buying {qty} contract(s).")
         return qty
 
     except Exception as e:
